@@ -1,5 +1,6 @@
 package sniper;
 
 public interface Factory {
-  Pair getPair(final Token token0, final Token token1) throws Exception;
+  TokenPair getPair(final String token0Address, final String token1Address)
+    throws Exception;
 }
