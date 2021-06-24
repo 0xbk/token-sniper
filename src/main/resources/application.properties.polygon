@@ -1,0 +1,58 @@
+# Polygon mainnet
+rpc.url=https://matic-mainnet.chainstacklabs.com
+#rpc.url=https://rpc-mainnet.matic.quiknode.pro
+rpc.chainId=137
+
+#gas.station.speed=safeLow
+#gas.station.speed=standard
+#gas.station.speed=fast
+gas.station.speed=fastest
+gas.station.url=https://gasstation-mainnet.matic.network/
+gas.limit.multiplier=1.2
+#gas.price.multiplier=1.5
+#gas.price.staticInGwei=5
+
+key.publicKey=
+key.privateKey=
+
+token.type=ERC20
+
+# USDC
+peg.usd1DollarAddress=0x2791bca1f2de4661ed88a30c99a7a9449aa84174
+
+# Quickswap
+router.address=0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff
+router.type=UNISWAPV2
+# Sushiswap
+#uniFactory=0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac
+#uniRouter=0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F
+
+dryRun=false
+#dryRun=true
+#mode=SINGLE_SWAP_ALL_TOKEN_IN
+#mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT
+mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
+
+swap.slippage=.01
+
+# USDC
+lp.token0=0x2791bca1f2de4661ed88a30c99a7a9449aa84174
+# DAI
+lp.token1=0x8f3cf7ad23cd3cadbd9735aff958023239c6a063
+
+# USDC
+#swap.in.token=0x2791bca1f2de4661ed88a30c99a7a9449aa84174
+#swap.in.amount=0.05
+# DAI
+swap.in.token=0x8f3cf7ad23cd3cadbd9735aff958023239c6a063
+swap.in.amount=0.05
+
+# DAI
+#swap.out.token=0x8f3cf7ad23cd3cadbd9735aff958023239c6a063
+# USDC
+swap.out.token=0x2791bca1f2de4661ed88a30c99a7a9449aa84174
+
+# logging.level.root=DEBUG
+logging.level.root=INFO
+spring.output.ansi.enabled=always
+spring.main.allow-bean-definition-overriding=true

@@ -1,63 +1,55 @@
 package sniper;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import jnr.ffi.provider.InAccessibleMemoryIO;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import sniper.uniswap.UniswapV2Factory;
-import sniper.uniswap.UniswapV2Router;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
+import org.web3j.tx.TransactionManager;
+import sniper.config.Config;
+import sniper.config.Config.Mode;
+import sniper.config.LpConfig;
+import sniper.config.SwapInConfig;
+import sniper.config.SwapOutConfig;
 
 @SpringBootApplication
+@Log4j2
 public class Sniper implements CommandLineRunner {
 
-  @Value("${rpcUrl}")
-  private String rpcUrl;
-
-  @Value("${token0Address}")
-  private String token0Address;
-
-  @Value("${token1Address}")
-  private String token1Address;
-
-  @Value("${amountOutToSwap}")
-  private double amountOutToSwap;
-
-  @Value("${amountInToSwap}")
-  private double amountInToSwap;
-
-  @Value("${transactionCount}")
-  private int transactionCount;
-
-  @Value("${uniFactory}")
-  private String uniFactory;
-
-  @Value("${uniRouter}")
-  private String uniRouter;
-
-  @Value("${publicKey}")
-  private String publicKey;
-
-  @Value("${gasLimitMultiplier}")
-  private double gasLimitMultiplier;
+  @Autowired
+  private Config config;
 
   @Autowired
-  private Web3Service web3;
+  private LpConfig lpConfig;
 
   @Autowired
-  private TransManager transManager;
+  private SwapOutConfig swapOutConfig;
 
   @Autowired
-  private GasStation gasStation;
+  private SwapInConfig swapInConfig;
 
-  // @Value("${gasPrice}")
-  // private BigInteger gasPrice;
+  @Autowired
+  private TokenFactory token;
 
-  private static final Logger log = LogManager.getLogger();
+  @Autowired
+  private Router router;
+
+  @Autowired
+  private TxManager txManager;
+
+  @Autowired
+  private Converter converter;
 
   public static void main(String[] args) {
     SpringApplication.run(Sniper.class, args);
@@ -65,207 +57,349 @@ public class Sniper implements CommandLineRunner {
 
   @Override
   public void run(String... args) throws Exception {
-    log.info("Loading uniswap factory {}", uniFactory);
-    log.info("Loading uniswap router {}", uniRouter);
-
-    final UniswapV2Factory factory = new UniswapV2Factory(
-      uniFactory,
-      web3,
-      transManager
-    );
-    final UniswapV2Router router = new UniswapV2Router(
-      uniRouter,
-      web3,
-      transManager,
-      gasStation
-    );
-    final Token token0 = new Token(
-      token0Address,
-      web3,
-      transManager,
-      gasStation,
-      gasLimitMultiplier
-    );
-    final Token token1 = new Token(
-      token1Address,
-      web3,
-      transManager,
-      gasStation,
-      gasLimitMultiplier
+    final Token inToken = token.from(swapInConfig.getToken());
+    final Token outToken = token.from(swapOutConfig.getToken());
+    final BigInteger inAmount = converter.fromHuman(
+      swapInConfig.getAmount(),
+      inToken.getDecimals()
     );
 
-    final var pairName = String.format(
-      "%s-%s",
-      token0.symbol(),
-      token1.symbol()
-    );
+    if (inAmount.compareTo(inToken.allowance(inToken.getAddress())) > 0) {
+      final TransactionReceipt tx = inToken
+        .approve(router.getAddress(), inAmount.multiply(BigInteger.TWO))
+        .send();
 
-    log.info("Getting pair for {}", pairName);
-
-    final var pair = factory.getPair(token0, token1);
-
-    log.info(
-      "Pair {} @ address {} has LP symbol {}",
-      pairName,
-      pair.getContract().getContractAddress(),
-      pair.symbol()
-    );
-
-    // final var intAmountOutToSwap = BigInteger.valueOf(
-    //   (long) (amountOutToSwap * Math.pow(10, token0.decimals().longValue()))
-    // );
-
-    // log.info("Approving router to transfer {} tokens", intAmountOutToSwap);
-
-    // token0.approve(router.getContract().getContractAddress(), intAmountToSwap);
-
-    // (long) (amountInToSwap * Math.pow(10, token1.decimals().longValue()))
-
-    final var intAmountInToSwap = BigInteger
-      .valueOf((long) Double.parseDouble(String.valueOf(amountInToSwap)))
-      .multiply(BigInteger.valueOf(10).pow(token1.decimals().intValue()));
-    // final var approvalLimit = BigInteger
-    //   .valueOf(999999)
-    //   .multiply(BigInteger.valueOf(10).pow(token0.decimals().intValue()));
-
-    // log.info("Approving router to transfer {} tokens", approvalLimit);
-
-    // token0.approve(router.getContract().getContractAddress(), approvalLimit);
-
-    while (true) {
-      // Thread.sleep(500);
-      Thread.sleep(2500);
-
-      final BigInteger totalSupply = pair.totalSupply();
-
-      log.info(
-        "{} pair total supply is {}; waiting to swap {} {} tokens...",
-        pairName,
-        totalSupply,
-        // intAmountToSwap,
-        // token0.symbol()
-        intAmountInToSwap,
-        token1.symbol()
-      );
-
-      if (totalSupply.longValue() > 0) {
-        break;
-      }
+      log.info("Approve successful, tx: {}", tx.getTransactionHash());
     }
 
-    // var remainingAmountToSwap = intAmountOutToSwap;
+    final Token lpToken0 = token.from(lpConfig.getToken0());
+    final Token lpToken1 = token.from(lpConfig.getToken1());
+    TokenPair lpPair = null;
 
-    // while (remainingAmountToSwap.compareTo(BigInteger.ZERO) > 0) {
-    //   var currentAmountToSwap = remainingAmountToSwap;
+    while (
+      lpPair == null || lpPair.getTotalSupply().compareTo(BigInteger.ZERO) == 0
+    ) {
+      try {
+        if (lpPair == null) {
+          lpPair = TokenPair.from(lpToken0, lpToken1);
+        }
 
-    //   while (currentAmountToSwap.longValue() > 1) {
-    //     log.info(
-    //       "Attempting to swap {} {} tokens; {} remaining",
-    //       currentAmountToSwap,
-    //       token0.symbol(),
-    //       remainingAmountToSwap
-    //     );
+        final var totalSupply = lpPair.getTotalSupply();
 
-    //     try {
-    //       router.swap(token0, token1, remainingAmountToSwap, publicKey);
-    //       remainingAmountToSwap =
-    //         remainingAmountToSwap.subtract(currentAmountToSwap);
-
-    //       log.info("Swap successful!");
-
-    //       break;
-    //     } catch (final ContractCallException e) {
-    //       if (e.getMessage().contains("INSUFFICIENT_LIQUIDITY")) {
-    //         log.info("Insufficient liquidity");
-
-    //         currentAmountToSwap =
-    //           currentAmountToSwap.divide(BigInteger.valueOf(4));
-    //       }
-    //     }
-    //   }
-    // }
-
-    // var remainingAmountToSwap = intAmountInToSwap;
-
-    // while (remainingAmountToSwap.compareTo(BigInteger.ZERO) > 0) {
-    //   var currentAmountToSwap = remainingAmountToSwap;
-
-    //   while (currentAmountToSwap.longValue() > 1) {
-    //     log.info(
-    //       "Attempting to swap {} {} tokens; {} remaining",
-    //       currentAmountToSwap,
-    //       token1.symbol(),
-    //       remainingAmountToSwap
-    //     );
-
-    //     try {
-    //       router.swapTokensForExactTokens(
-    //         token0,
-    //         token1,
-    //         remainingAmountToSwap,
-    //         publicKey
-    //       );
-    //       remainingAmountToSwap =
-    //         remainingAmountToSwap.subtract(currentAmountToSwap);
-
-    //       log.info("Swap successful!");
-
-    //       break;
-    //     } catch (final ContractCallException e) {
-    //       log.error("Tx failed: {}", e.getMessage());
-
-    //       if (e.getMessage().contains("INSUFFICIENT_LIQUIDITY")) {
-    //         log.info("Insufficient liquidity");
-
-    //         currentAmountToSwap =
-    //           currentAmountToSwap.divide(BigInteger.valueOf(4));
-    //       }
-    //     }
-    //   }
-    // }
-
-    log.info("Sending {} transactions", transactionCount);
-
-    final var successfulTransactions = new AtomicInteger(0);
-    final var transactionsPending = new AtomicInteger(0);
-
-    while (successfulTransactions.get() != transactionCount) {
-      if (transactionsPending.get() != transactionCount) {
         log.info(
-          "Attempting to swap {} {} tokens",
-          intAmountInToSwap,
-          token1.symbol()
+          "Liquidity for pair {}-{} is {}, {}...",
+          lpToken0.getSymbol(),
+          lpToken1.getSymbol(),
+          converter.toHuman(totalSupply, lpPair.getDecimals()),
+          totalSupply.compareTo(BigInteger.ZERO) == 0 ? "waiting" : "swapping"
         );
 
-        transactionsPending.incrementAndGet();
-
-        router
-          .swapTokensForExactTokensAsync(
-            token0,
-            token1,
-            intAmountInToSwap,
-            publicKey
-          )
-          .handle(
-            (tx, e) -> {
-              if (e == null) {
-                log.info("Swap successful, tx: {}", tx.getTransactionHash());
-
-                successfulTransactions.incrementAndGet();
-              } else {
-                log.info("Tx failed: {}", e.getMessage());
-
-                transactionsPending.decrementAndGet();
-              }
-
-              return null;
-            }
-          );
-
-        Thread.sleep(200);
+        if (totalSupply.compareTo(BigInteger.ZERO) == 0) {
+          Thread.sleep(250);
+        }
+      } catch (final SniperException e) {
+        log.info(
+          "Liquidity pair for {}-{} does not exist yet",
+          lpToken0.getSymbol(),
+          lpToken1.getSymbol()
+        );
       }
     }
 
-    log.info("All tx's complete!");
+    final List<Supplier<Boolean>> conditions = new LinkedList<>();
+    // define our conditions for swapping
+
+    // while (conditions.stream().allMatch(Supplier::get)) {
+    //   // conditions not met
+    // }
+
+    // conditions have been met, swap
+
+    if (config.getMode() == Mode.SINGLE_SWAP_ALL_TOKEN_IN) {
+      singleSwapAllInToken(
+        inToken,
+        outToken,
+        inAmount,
+        txManager.getFromAddress()
+      );
+    } else if (config.getMode() == Mode.MULTI_SWAP_TOKEN_OUT_TX_LIMIT) {
+      multiSwapWithTokenOutTxLimit(
+        inToken,
+        outToken,
+        inAmount,
+        txManager.getFromAddress()
+      );
+    } else if (config.getMode() == Mode.MULTI_SWAP_TOKEN_IN_TX_LIMIT) {
+      multiSwapWithTokenInTxLimit(
+        inToken,
+        outToken,
+        inAmount,
+        txManager.getFromAddress()
+      );
+    } else {
+      log.error("No mode specified in application.properties.");
+    }
+  }
+
+  private void singleSwapAllInToken(
+    final Token inToken,
+    final Token outToken,
+    final BigInteger inAmount,
+    final String to
+  ) {
+    log.info(
+      "Creating single tx to swap {} {} for {}",
+      converter.toHuman(inAmount, inToken.getDecimals()),
+      inToken.getSymbol(),
+      outToken.getSymbol()
+    );
+
+    try {
+      final var tokenOutMinAndTx = router.swapExactTokensForTokens(
+        inToken,
+        outToken,
+        inAmount,
+        to
+      );
+      final var tokenOutMin = tokenOutMinAndTx.getLeft();
+
+      log.info(
+        "Attempting to swap {} {} for {} {}",
+        converter.toHuman(inAmount, inToken.getDecimals()),
+        inToken.getSymbol(),
+        converter.toHuman(tokenOutMin, outToken.getDecimals()),
+        outToken.getSymbol()
+      );
+
+      final var tx = tokenOutMinAndTx.getRight().send();
+
+      log.info("Swap tx successful: {}", tx.getTransactionHash());
+    } catch (final Exception e) {
+      log.error("Swap tx failed.", e);
+    }
+  }
+
+  private void multiSwapWithTokenOutTxLimit(
+    final Token inToken,
+    final Token outToken,
+    final BigInteger inAmount,
+    final String to
+  ) {
+    txManager.enableManualNonceIncrement(true);
+
+    log.info(
+      "Creating multi tx to swap {} {} for {}",
+      converter.toHuman(inAmount, inToken.getDecimals()),
+      inToken.getSymbol(),
+      outToken.getSymbol()
+    );
+
+    // Get the tx limit here.
+    // final var tokenOutTxLimit = BigInteger.ZERO;
+    final var tokenOutTxLimit = converter.fromHuman(
+      0.02,
+      outToken.getDecimals()
+    );
+    final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
+    BigInteger inAmountLeft = inAmount;
+
+    while (inAmountLeft.compareTo(BigInteger.ZERO) > 0) {
+      try {
+        final var tokenInMaxAndTx = router.swapTokensForExactTokens(
+          inToken,
+          outToken,
+          tokenOutTxLimit,
+          to
+        );
+        final var tokenInMax = tokenInMaxAndTx.getLeft();
+
+        if (inAmountLeft.compareTo(tokenInMax) > 0) {
+          // Normal swapTokensForExactTokens.
+
+          log.info(
+            "Attempting to swap {} {} for {} {}",
+            converter.toHuman(tokenInMax, inToken.getDecimals()),
+            inToken.getSymbol(),
+            converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
+            outToken.getSymbol()
+          );
+
+          final var tx = tokenInMaxAndTx.getRight();
+
+          txs.add(tx.sendAsync());
+          inAmountLeft = inAmountLeft.subtract(tokenInMax);
+        } else {
+          // Last will be swapExactTokensForTokens.
+
+          final var tokenOutMinAndTx = router.swapExactTokensForTokens(
+            inToken,
+            outToken,
+            inAmountLeft,
+            to
+          );
+          final var tokenOutMin = tokenOutMinAndTx.getLeft();
+
+          log.info(
+            "Attempting to swap {} {} for {} {}",
+            converter.toHuman(inAmountLeft, inToken.getDecimals()),
+            inToken.getSymbol(),
+            converter.toHuman(tokenOutMin, outToken.getDecimals()),
+            outToken.getSymbol()
+          );
+
+          final var tx = tokenOutMinAndTx.getRight();
+
+          txs.add(tx.sendAsync());
+          inAmountLeft = BigInteger.ZERO;
+        }
+      } catch (final Exception e) {
+        log.error("Swap tx failed.", e);
+      }
+    }
+
+    log.info("{} tx's sent, waiting for them to finish...", txs.size());
+
+    final var txReceipts = new LinkedList<TransactionReceipt>();
+    final var txFailures = new LinkedList<TransactionReceipt>();
+    final var txExceptions = new LinkedList<Exception>();
+
+    for (final var tx : txs) {
+      try {
+        final var txReceipt = tx.join();
+
+        if (txReceipt.isStatusOK()) {
+          txReceipts.add(txReceipt);
+        } else {
+          txFailures.add(txReceipt);
+        }
+      } catch (final CompletionException e) {
+        txExceptions.add(e);
+      }
+    }
+
+    log.info(
+      "All transactions finised: {} successful, {} failures, {} exceptions",
+      txReceipts.size(),
+      txFailures.size(),
+      txExceptions.size()
+    );
+
+    txReceipts.forEach(
+      txReceipt ->
+        log.info("Tx success. Hash: {}", txReceipt.getTransactionHash())
+    );
+    txFailures.forEach(
+      txFailure ->
+        log.info(
+          "Tx failure. Hash {}; revert reason: {}, status: {}",
+          txFailure.getTransactionHash(),
+          txFailure.getRevertReason(),
+          txFailure.getStatus()
+        )
+    );
+    txExceptions.forEach(
+      txException -> log.info("Tx exception. {}", txException)
+    );
+
+    txManager.enableManualNonceIncrement(false);
+  }
+
+  private void multiSwapWithTokenInTxLimit(
+    final Token inToken,
+    final Token outToken,
+    final BigInteger inAmount,
+    final String to
+  ) {
+    txManager.enableManualNonceIncrement(true);
+
+    log.info(
+      "Creating multi tx to swap {} {} for {}",
+      converter.toHuman(inAmount, inToken.getDecimals()),
+      inToken.getSymbol(),
+      outToken.getSymbol()
+    );
+
+    // Get the tx limit here.
+    // final var tokenInTxLimit = BigInteger.ZERO;
+    final var tokenInTxLimit = converter.fromHuman(0.02, inToken.getDecimals());
+    final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
+    BigInteger inAmountLeft = inAmount;
+
+    while (inAmountLeft.compareTo(BigInteger.ZERO) > 0) {
+      final var inAmountForTx = inAmountLeft.compareTo(tokenInTxLimit) > 0
+        ? tokenInTxLimit
+        : inAmountLeft;
+
+      try {
+        final var tokenOutMinAndTx = router.swapExactTokensForTokens(
+          inToken,
+          outToken,
+          inAmountForTx,
+          to
+        );
+        final var tokenOutMin = tokenOutMinAndTx.getLeft();
+
+        log.info(
+          "Attempting to swap {} {} for {} {}",
+          converter.toHuman(inAmountForTx, inToken.getDecimals()),
+          inToken.getSymbol(),
+          converter.toHuman(tokenOutMin, outToken.getDecimals()),
+          outToken.getSymbol()
+        );
+
+        final var tx = tokenOutMinAndTx.getRight();
+
+        txs.add(tx.sendAsync());
+        inAmountLeft = inAmountLeft.subtract(inAmountForTx);
+      } catch (final Exception e) {
+        log.error("Swap tx failed.", e);
+      }
+    }
+
+    log.info("{} tx's sent, waiting for them to finish...", txs.size());
+
+    final var txReceipts = new LinkedList<TransactionReceipt>();
+    final var txFailures = new LinkedList<TransactionReceipt>();
+    final var txExceptions = new LinkedList<Exception>();
+
+    for (final var tx : txs) {
+      try {
+        final var txReceipt = tx.join();
+
+        if (txReceipt.isStatusOK()) {
+          txReceipts.add(txReceipt);
+        } else {
+          txFailures.add(txReceipt);
+        }
+      } catch (final CompletionException e) {
+        txExceptions.add(e);
+      }
+    }
+
+    log.info(
+      "All transactions finised: {} successful, {} failures, {} exceptions",
+      txReceipts.size(),
+      txFailures.size(),
+      txExceptions.size()
+    );
+
+    txReceipts.forEach(
+      txReceipt ->
+        log.info("Tx success. Hash: {}", txReceipt.getTransactionHash())
+    );
+    txFailures.forEach(
+      txFailure ->
+        log.info(
+          "Tx failure. Hash {}; revert reason: {}, status: {}",
+          txFailure.getTransactionHash(),
+          txFailure.getRevertReason(),
+          txFailure.getStatus()
+        )
+    );
+    txExceptions.forEach(
+      txException -> log.info("Tx exception. {}", txException)
+    );
+
+    txManager.enableManualNonceIncrement(false);
   }
 }

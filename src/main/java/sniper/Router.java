@@ -1,21 +1,29 @@
 package sniper;
 
 import java.math.BigInteger;
+import java.util.List;
+import org.apache.commons.lang3.tuple.Pair;
+import org.web3j.protocol.core.RemoteFunctionCall;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
+import sniper.config.RouterConfig;
 
 public interface Router {
-  public void swapExactTokensForTokens(
+  String getAddress();
+  Factory getFactory();
+  RouterConfig.Type getType();
+  Token getWeth();
+  List<BigInteger> getAmountsOut(final BigInteger amountIn, List<Token> path);
+  List<BigInteger> getAmountsIn(final BigInteger amountOut, List<Token> path);
+  Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> swapExactTokensForTokens(
     final Token tokenIn,
     final Token tokenOut,
     final BigInteger amountIn,
     final String to
-  )
-    throws Exception;
-
-  void swapTokensForExactTokens(
+  );
+  Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> swapTokensForExactTokens(
     final Token tokenIn,
     final Token tokenOut,
     final BigInteger amountOut,
     final String to
-  )
-    throws Exception;
+  );
 }
