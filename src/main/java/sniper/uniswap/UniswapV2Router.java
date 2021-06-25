@@ -1,5 +1,6 @@
 package sniper.uniswap;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
@@ -56,12 +57,7 @@ public class UniswapV2Router implements Router {
         gasStation
       );
     this.weth =
-      new IERC20Token(
-        this.router.WETH().send(),
-        web3j,
-        txManager,
-        gasStation
-      );
+      new IERC20Token(this.router.WETH().send(), web3j, txManager, gasStation);
 
     log.info("Created router @ address {}", contractAddress);
     log.traceExit();
@@ -119,13 +115,20 @@ public class UniswapV2Router implements Router {
     final Token tokenIn,
     final Token tokenOut,
     final BigInteger amountIn,
-    final String to
+    final String to,
+    final BigDecimal slippageInPercent
   )
     throws Exception {
-    log.traceEntry(() -> tokenIn, () -> tokenOut, () -> amountIn, () -> to);
+    log.traceEntry(
+      () -> tokenIn,
+      () -> tokenOut,
+      () -> amountIn,
+      () -> to,
+      () -> slippageInPercent
+    );
 
     final var path = createSwapPath(tokenIn, tokenOut);
-    final var amountOutMin = getAmountsOut(amountIn, path).get(path.size() - 1);
+    var amountOutMin = getAmountsOut(amountIn, path).get(path.size() - 1);
     final var deadline = web3j
       .ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false)
       .send()
@@ -139,6 +142,16 @@ public class UniswapV2Router implements Router {
       amountOutMin,
       deadline
     );
+
+    amountOutMin =
+      amountOutMin.subtract(
+        BigInteger.valueOf(
+          (long) (
+            amountOutMin.doubleValue() *
+            (slippageInPercent.doubleValue() / 100.0)
+          )
+        )
+      );
 
     return log.traceExit(
       router.swapExactTokensForTokens(
@@ -158,13 +171,14 @@ public class UniswapV2Router implements Router {
     final Token tokenIn,
     final Token tokenOut,
     final BigInteger amountOut,
-    final String to
+    final String to,
+    final BigDecimal slippageInPercent
   )
     throws Exception {
     log.traceEntry(() -> tokenIn, () -> tokenOut, () -> amountOut, () -> to);
 
     final var path = createSwapPath(tokenIn, tokenOut);
-    final var amountInMax = getAmountsIn(amountOut, path).get(0);
+    var amountInMax = getAmountsIn(amountOut, path).get(0);
     final var deadline = web3j
       .ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false)
       .send()
@@ -178,6 +192,16 @@ public class UniswapV2Router implements Router {
       amountOut,
       deadline
     );
+
+    amountInMax =
+      amountInMax.add(
+        BigInteger.valueOf(
+          (long) (
+            amountInMax.doubleValue() *
+            (slippageInPercent.doubleValue() / 100.0)
+          )
+        )
+      );
 
     return log.traceExit(
       router.swapTokensForExactTokens(

@@ -11,5 +11,8 @@ public interface Token {
     final BigInteger amount
   );
   BigInteger decimals();
+  BigInteger maxTransferAmount() throws Exception;
+  boolean swapEnabled() throws Exception;
   String symbol();
+  BigInteger totalSupply() throws Exception;
 }

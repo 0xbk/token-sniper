@@ -1,5 +1,6 @@
 package sniper;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 import org.web3j.protocol.core.RemoteFunctionCall;
@@ -22,14 +23,16 @@ public interface Router {
     final Token tokenIn,
     final Token tokenOut,
     final BigInteger amountIn,
-    final String to
+    final String to,
+    final BigDecimal slippageInPercent
   )
     throws Exception;
   RemoteFunctionCall<TransactionReceipt> swapTokensForExactTokens(
     final Token tokenIn,
     final Token tokenOut,
     final BigInteger amountOut,
-    final String to
+    final String to,
+    final BigDecimal slippageInPercent
   )
     throws Exception;
 }

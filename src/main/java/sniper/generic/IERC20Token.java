@@ -70,9 +70,27 @@ public class IERC20Token implements Token {
     return log.traceExit(decimals);
   }
 
+@Override
+  public BigInteger maxTransferAmount() throws Exception {
+    log.traceEntry();
+    return log.traceExit(ierc20.maxTransferAmount().send());
+  }
+
+  @Override
+  public boolean swapEnabled() throws Exception {
+    log.traceEntry();
+    return log.traceExit(ierc20.swapEnabled().send());
+  }
+
   @Override
   public String symbol() {
     log.traceEntry();
     return log.traceExit(symbol);
+  }
+
+  @Override
+  public BigInteger totalSupply() throws Exception {
+    log.traceEntry();
+    return log.traceExit(ierc20.totalSupply().send());
   }
 }

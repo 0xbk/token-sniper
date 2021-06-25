@@ -33,7 +33,7 @@ public class UsdPriceService {
   }
 
   public BigDecimal get(final Token token) throws Exception {
-    log.traceEntry();
+    log.traceEntry(() -> token);
 
     if (usd1.getContractAddress().equals(token.getContractAddress())) {
       return BigDecimal.ONE;
@@ -52,6 +52,33 @@ public class UsdPriceService {
       BigDecimal.valueOf(
         amountOut.doubleValue() / Math.pow(10.0, usd1.decimals().doubleValue())
       )
+    );
+  }
+
+  public BigDecimal getFor(final Token token, final BigDecimal amount)
+    throws Exception {
+    log.traceEntry(() -> token, () -> amount);
+
+    if (usd1.getContractAddress().equals(token.getContractAddress())) {
+      return BigDecimal.ONE.multiply(amount);
+    }
+
+    final BigInteger amountOut = router
+      .getAmountsOut(
+        BigInteger.ONE.multiply(
+          BigInteger.TEN.pow(token.decimals().intValue())
+        ),
+        Arrays.asList(token, usd1)
+      )
+      .get(1);
+
+    return log.traceExit(
+      BigDecimal
+        .valueOf(
+          amountOut.doubleValue() /
+          Math.pow(10.0, usd1.decimals().doubleValue())
+        )
+        .multiply(amount)
     );
   }
 }
