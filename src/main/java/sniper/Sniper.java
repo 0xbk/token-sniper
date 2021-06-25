@@ -117,6 +117,9 @@ public class Sniper implements CommandLineRunner {
     // final var approveReceipt = tokenIn
     //   .approve(router.getContractAddress(), amountIn.multiply(BigInteger.TWO))
     //   .send();
+    // final var approveReceipt = tokenIn
+    //   .approve(router.getContractAddress(), fromHuman(1000000, tokenIn))
+    //   .send();
 
     // log.info(
     //   "Approval successful, tx: {}",
@@ -131,34 +134,35 @@ public class Sniper implements CommandLineRunner {
       final BigInteger totalSupply = pair.totalSupply();
       final double tokenInUsdPrice = usdPrice.get(tokenOut).doubleValue();
       final boolean priceTriggerHit = tokenInUsdPrice < triggerPriceUsd;
+      final boolean swapEnabled = tokenOut.swapEnabled();
 
-      // log.info(
-      //   "{}-{} total supply {}; swapEnabled = {}; max xfer = {}; " +
-      //   "${} < ${} = {}; waiting to swap {} tokens...",
-      //   pair.token0().symbol(),
-      //   pair.token1().symbol(),
-      //   totalSupply,
-      //   tokenOut.swapEnabled(),
-      //   toHumanStr(tokenOut.maxTransferAmount(), tokenOut),
-      //   tokenInUsdPrice,
-      //   triggerPriceUsd,
-      //   tokenInUsdPrice < triggerPriceUsd,
-      //   toHumanStr(amountIn, tokenIn)
-      // );
       log.info(
-        "{}-{} total supply {}; " +
-        "${} < ${} = {}; waiting to swap {} tokens...",
+        "{}-{} total supply {}; swapEnabled = {}; max xfer = {}; " +
+        "${} < ${} = {}; waiting to swap...",
         pair.token0().symbol(),
         pair.token1().symbol(),
         totalSupply,
+        swapEnabled,
+        toHumanStr(tokenOut.maxTransferAmount(), tokenOut),
         tokenInUsdPrice,
         triggerPriceUsd,
         tokenInUsdPrice < triggerPriceUsd,
         toHumanStr(amountIn, tokenIn)
       );
+      // log.info(
+      //   "{}-{} total supply {}; " +
+      //   "${} < ${} = {}; waiting to swap {} tokens...",
+      //   pair.token0().symbol(),
+      //   pair.token1().symbol(),
+      //   totalSupply,
+      //   tokenInUsdPrice,
+      //   triggerPriceUsd,
+      //   tokenInUsdPrice < triggerPriceUsd,
+      //   toHumanStr(amountIn, tokenIn)
+      // );
 
-      // if (totalSupply.longValue() > 0 && tokenIn.swapEnabled() && priceTriggerHit) {
-      if (totalSupply.longValue() > 0 && priceTriggerHit) {
+      if (totalSupply.longValue() > 0 && swapEnabled && priceTriggerHit) {
+      // if (totalSupply.longValue() > 0 && priceTriggerHit) {
         break;
       }
     }
@@ -173,8 +177,8 @@ public class Sniper implements CommandLineRunner {
     );
 
     while (amountInRemaining.longValue() > 0) {
-      // final BigInteger maxTransfer = tokenOut.maxTransferAmount();
-      final BigInteger maxTransfer = BigInteger.valueOf(30000000000000000L);
+      final BigInteger maxTransfer = tokenOut.maxTransferAmount();
+      // final BigInteger maxTransfer = BigInteger.valueOf(30000000000000000L);
       BigInteger txAmountIn = router
         .getAmountsIn(maxTransfer, Arrays.asList(tokenIn, tokenOut))
         .get(0);
@@ -211,6 +215,8 @@ public class Sniper implements CommandLineRunner {
                 if (e == null) {
                   txComplete.incrementAndGet();
                 } else {
+                  log.error("Tx failed", e);
+
                   txFailures.incrementAndGet();
                 }
 
@@ -258,6 +264,8 @@ public class Sniper implements CommandLineRunner {
                 if (e == null) {
                   txComplete.incrementAndGet();
                 } else {
+                  log.error("Tx failed", e);
+
                   txFailures.incrementAndGet();
                 }
 
@@ -278,7 +286,7 @@ public class Sniper implements CommandLineRunner {
 
             Thread.sleep(500);
           } else {
-            log.error("Failed to send a transaction", e);
+            log.error("Tx failed", e);
           }
         }
       }

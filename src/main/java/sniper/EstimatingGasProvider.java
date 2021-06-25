@@ -1,17 +1,12 @@
 package sniper;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.extern.log4j.Log4j2;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.tx.TransactionManager;
 import org.web3j.tx.gas.ContractGasProvider;
-import org.web3j.utils.Convert;
-import org.web3j.utils.Convert.Unit;
 
 @Log4j2
 public class EstimatingGasProvider implements ContractGasProvider {
@@ -56,29 +51,28 @@ public class EstimatingGasProvider implements ContractGasProvider {
   }
 
   @Override
-  public BigInteger getGasLimit(String contractFunc, String data) throws IOException {
+  public BigInteger getGasLimit(String contractFunc, String data)
+    throws IOException {
     log.traceEntry(() -> contractFunc, () -> data);
+    // return log.traceExit(BigInteger.valueOf(188770));
+    return log.traceExit(BigInteger.valueOf(300000));
 
-    final var transaction = Transaction.createFunctionCallTransaction(
-      txManager.getFromAddress(),
-      BigInteger.ZERO,
-      BigInteger.ZERO,
-      BigInteger.ZERO,
-      contractAddress,
-      data
-    );
-    final var gasLimit = web3j
-      .ethEstimateGas(transaction)
-      .send()
-      .getAmountUsed();
+    // final var transaction = Transaction.createFunctionCallTransaction(
+    //   txManager.getFromAddress(),
+    //   BigInteger.ZERO,
+    //   BigInteger.ZERO,
+    //   BigInteger.ZERO,
+    //   contractAddress,
+    //   data
+    // );
+    // final var gasLimit = web3j
+    //   .ethEstimateGas(transaction)
+    //   .send()
+    //   .getAmountUsed();
 
-    log.info(
-      "Gas limit for '{}' estimated to be {}",
-      contractFunc,
-      gasLimit
-    );
+    // log.info("Gas limit for '{}' estimated to be {}", contractFunc, gasLimit);
 
-    return log.traceExit(gasLimit);
+    // return log.traceExit(gasLimit);
   }
 
   @Override

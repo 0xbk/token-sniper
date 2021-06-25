@@ -134,7 +134,7 @@ public class UniswapV2Router implements Router {
       .send()
       .getBlock()
       .getTimestamp()
-      .add(BigInteger.valueOf(60));
+      .add(BigInteger.valueOf(300));
 
     log.info(
       "Attempting to swap {} tokens for {} tokens by deadline {}",
@@ -184,7 +184,7 @@ public class UniswapV2Router implements Router {
       .send()
       .getBlock()
       .getTimestamp()
-      .add(BigInteger.valueOf(60));
+      .add(BigInteger.valueOf(300));
 
     log.info(
       "Swapping {} tokens for {} tokens by deadline {}",
