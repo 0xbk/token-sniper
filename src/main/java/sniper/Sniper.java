@@ -1,5 +1,6 @@
 package sniper;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.Duration;
 import java.util.LinkedList;
@@ -7,10 +8,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.extern.log4j.Log4j2;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import sniper.config.Config;
 import sniper.config.Config.Mode;
@@ -59,12 +62,10 @@ public class Sniper implements CommandLineRunner {
       inToken.getDecimals()
     );
 
-    if (inAmount.compareTo(inToken.allowance(inToken.getAddress())) > 0) {
-      final var tx = inToken
-        .approve(router.getAddress(), inAmount.multiply(BigInteger.TWO))
-        .send();
-
-      log.info("Approve successful, tx: {}", tx.getTransactionHash());
+    if (config.getMode() == Mode.APPROVE_TOKENS) {
+      approveTokens(inToken, outToken, inAmount);
+    } else {
+      approveToken(inToken, inAmount.multiply(BigInteger.TWO));
     }
 
     final long loopPauseInMillis = 000;
@@ -72,9 +73,7 @@ public class Sniper implements CommandLineRunner {
     final var lpToken1 = token.from(lpConfig.getToken1());
     TokenPair lpPair = null;
 
-    while (
-      lpPair == null
-    ) {
+    while (lpPair == null) {
       try {
         lpPair = TokenPair.from(lpToken0, lpToken1);
       } catch (final SniperException e) {
@@ -116,6 +115,39 @@ public class Sniper implements CommandLineRunner {
     } else {
       log.error("No mode specified in application.properties.");
     }
+  }
+
+  private void approveToken(final Token token, final BigInteger approvalAmount)
+    throws Exception {
+    if (approvalAmount.compareTo(token.allowance(router.getAddress())) > 0) {
+      log.info(
+        "Approving {} to spend {} {}",
+        router.getAddress(),
+        converter.toHuman(approvalAmount, token.getDecimals()),
+        token.getSymbol()
+      );
+
+      final var tx = token.approve(router.getAddress(), approvalAmount).send();
+
+      log.info("Approval successful, tx: {}", tx.getTransactionHash());
+    } else {
+      log.info(
+        "{} already approved to spend {} {}",
+        router.getAddress(),
+        converter.toHuman(approvalAmount, token.getDecimals()),
+        token.getSymbol()
+      );
+    }
+  }
+
+  private void approveTokens(
+    final Token inToken,
+    final Token outToken,
+    final BigInteger inAmount
+  )
+    throws Exception {
+    approveToken(inToken, inAmount.multiply(BigInteger.TWO));
+    approveToken(outToken, BigInteger.TWO.pow(255));
   }
 
   private void singleSwapAllInToken(
@@ -178,25 +210,45 @@ public class Sniper implements CommandLineRunner {
     );
 
     // Get the tx limit here.
-    final var tokenOutTxLimit = outToken.getMaxTxAmount();
-
-    log.info(
-      "Max tx amount: {} {}",
-      converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
-      outToken.getSymbol()
-    );
-
     final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
     BigInteger inAmountLeft = inAmount;
 
     while (inAmountLeft.compareTo(BigInteger.ZERO) > 0) {
       try {
-        final var tokenInMaxAndTx = router.swapTokensForExactTokens(
-          inToken,
-          outToken,
-          tokenOutTxLimit,
-          to
+        var tokenOutTxLimit = outToken.getMaxTxAmount();
+
+        log.info(
+          "Max tx amount is {} {}",
+          converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
+          outToken.getSymbol()
         );
+
+        Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> tokenInMaxAndTx =
+          null;
+
+        while (tokenInMaxAndTx == null) {
+          try {
+            tokenInMaxAndTx =
+              router.swapTokensForExactTokens(
+                inToken,
+                outToken,
+                tokenOutTxLimit,
+                to
+              );
+          } catch (final SniperException e) {
+            tokenOutTxLimit =
+              new BigDecimal(tokenOutTxLimit)
+                .multiply(BigDecimal.valueOf(0.5))
+                .toBigInteger();
+
+            log.info(
+              "Failed to swap, reducing max tx amount to {} {}",
+              converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
+              outToken.getSymbol()
+            );
+          }
+        }
+
         final var tokenInMax = tokenInMaxAndTx.getLeft();
 
         if (inAmountLeft.compareTo(tokenInMax) > 0) {

@@ -150,18 +150,15 @@ public class UniswapV2Router implements Router {
     final var path = createSwapPath(tokenIn, tokenOut);
     final var amountOutMin = getAmountsOut(amountIn, path).get(path.size() - 1);
     final var amountOutMinWithSlippage = amountOutMin.subtract(
-      BigInteger.valueOf(
-        BigDecimal
-          .valueOf(amountOutMin.doubleValue())
-          .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
-          .longValue()
-      )
+      new BigDecimal(amountOutMin)
+        .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
+        .toBigInteger()
     );
 
     log.info(
       "Swap amount out min estimated to be {} {}; {} {} with {} slippage applied",
       converter.toHuman(amountOutMin, tokenOut.getDecimals()),
-      tokenIn.getSymbol(),
+      tokenOut.getSymbol(),
       converter.toHuman(amountOutMinWithSlippage, tokenOut.getDecimals()),
       tokenOut.getSymbol(),
       swapConfig.getSlippage()
@@ -203,12 +200,9 @@ public class UniswapV2Router implements Router {
     final var path = createSwapPath(tokenIn, tokenOut);
     final var amountInMax = getAmountsIn(amountOut, path).get(0);
     final var amountInMaxWithSlippage = amountInMax.add(
-      BigInteger.valueOf(
-        BigDecimal
-          .valueOf(amountInMax.doubleValue())
-          .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
-          .longValue()
-      )
+      new BigDecimal(amountInMax)
+        .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
+        .toBigInteger()
     );
 
     log.info(
@@ -216,7 +210,7 @@ public class UniswapV2Router implements Router {
       converter.toHuman(amountInMax, tokenIn.getDecimals()),
       tokenIn.getSymbol(),
       converter.toHuman(amountInMaxWithSlippage, tokenIn.getDecimals()),
-      tokenOut.getSymbol(),
+      tokenIn.getSymbol(),
       swapConfig.getSlippage()
     );
 
