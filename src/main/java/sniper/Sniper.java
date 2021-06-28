@@ -1,22 +1,17 @@
 package sniper;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import jnr.ffi.provider.InAccessibleMemoryIO;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
-import org.web3j.tx.TransactionManager;
 import sniper.config.Config;
 import sniper.config.Config.Mode;
 import sniper.config.LpConfig;
@@ -57,61 +52,43 @@ public class Sniper implements CommandLineRunner {
 
   @Override
   public void run(String... args) throws Exception {
-    final Token inToken = token.from(swapInConfig.getToken());
-    final Token outToken = token.from(swapOutConfig.getToken());
-    final BigInteger inAmount = converter.fromHuman(
+    final var inToken = token.from(swapInConfig.getToken());
+    final var outToken = token.from(swapOutConfig.getToken());
+    final var inAmount = converter.fromHuman(
       swapInConfig.getAmount(),
       inToken.getDecimals()
     );
 
     if (inAmount.compareTo(inToken.allowance(inToken.getAddress())) > 0) {
-      final TransactionReceipt tx = inToken
+      final var tx = inToken
         .approve(router.getAddress(), inAmount.multiply(BigInteger.TWO))
         .send();
 
       log.info("Approve successful, tx: {}", tx.getTransactionHash());
     }
 
-    final Token lpToken0 = token.from(lpConfig.getToken0());
-    final Token lpToken1 = token.from(lpConfig.getToken1());
+    final long loopPauseInMillis = 000;
+    final var lpToken0 = token.from(lpConfig.getToken0());
+    final var lpToken1 = token.from(lpConfig.getToken1());
     TokenPair lpPair = null;
 
     while (
-      lpPair == null || lpPair.getTotalSupply().compareTo(BigInteger.ZERO) == 0
+      lpPair == null
     ) {
       try {
-        if (lpPair == null) {
-          lpPair = TokenPair.from(lpToken0, lpToken1);
-        }
-
-        final var totalSupply = lpPair.getTotalSupply();
-
-        log.info(
-          "Liquidity for pair {}-{} is {}, {}...",
-          lpToken0.getSymbol(),
-          lpToken1.getSymbol(),
-          converter.toHuman(totalSupply, lpPair.getDecimals()),
-          totalSupply.compareTo(BigInteger.ZERO) == 0 ? "waiting" : "swapping"
-        );
-
-        if (totalSupply.compareTo(BigInteger.ZERO) == 0) {
-          Thread.sleep(250);
-        }
+        lpPair = TokenPair.from(lpToken0, lpToken1);
       } catch (final SniperException e) {
         log.info(
           "Liquidity pair for {}-{} does not exist yet",
           lpToken0.getSymbol(),
           lpToken1.getSymbol()
         );
+
+        Thread.sleep(loopPauseInMillis);
       }
     }
 
-    final List<Supplier<Boolean>> conditions = new LinkedList<>();
     // define our conditions for swapping
-
-    // while (conditions.stream().allMatch(Supplier::get)) {
-    //   // conditions not met
-    // }
 
     // conditions have been met, swap
 
@@ -154,28 +131,34 @@ public class Sniper implements CommandLineRunner {
       outToken.getSymbol()
     );
 
-    try {
-      final var tokenOutMinAndTx = router.swapExactTokensForTokens(
-        inToken,
-        outToken,
-        inAmount,
-        to
-      );
-      final var tokenOutMin = tokenOutMinAndTx.getLeft();
+    var txSent = false;
 
-      log.info(
-        "Attempting to swap {} {} for {} {}",
-        converter.toHuman(inAmount, inToken.getDecimals()),
-        inToken.getSymbol(),
-        converter.toHuman(tokenOutMin, outToken.getDecimals()),
-        outToken.getSymbol()
-      );
+    while (!txSent) {
+      try {
+        final var tokenOutMinAndTx = router.swapExactTokensForTokens(
+          inToken,
+          outToken,
+          inAmount,
+          to
+        );
+        final var tokenOutMin = tokenOutMinAndTx.getLeft();
 
-      final var tx = tokenOutMinAndTx.getRight().send();
+        log.info(
+          "Attempting to swap {} {} for {} {}",
+          converter.toHuman(inAmount, inToken.getDecimals()),
+          inToken.getSymbol(),
+          converter.toHuman(tokenOutMin, outToken.getDecimals()),
+          outToken.getSymbol()
+        );
 
-      log.info("Swap tx successful: {}", tx.getTransactionHash());
-    } catch (final Exception e) {
-      log.error("Swap tx failed.", e);
+        final var tx = tokenOutMinAndTx.getRight().send();
+
+        log.info("Swap tx successful: {}", tx.getTransactionHash());
+
+        txSent = true;
+      } catch (final Exception e) {
+        log.error("Swap tx failed.", e);
+      }
     }
   }
 
@@ -195,11 +178,14 @@ public class Sniper implements CommandLineRunner {
     );
 
     // Get the tx limit here.
-    // final var tokenOutTxLimit = BigInteger.ZERO;
-    final var tokenOutTxLimit = converter.fromHuman(
-      0.02,
-      outToken.getDecimals()
+    final var tokenOutTxLimit = outToken.getMaxTxAmount();
+
+    log.info(
+      "Max tx amount: {} {}",
+      converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
+      outToken.getSymbol()
     );
+
     final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
     BigInteger inAmountLeft = inAmount;
 
@@ -253,7 +239,15 @@ public class Sniper implements CommandLineRunner {
           inAmountLeft = BigInteger.ZERO;
         }
       } catch (final Exception e) {
-        log.error("Swap tx failed.", e);
+        if (
+          e.getCause() != null &&
+          e.getCause().getMessage() != null &&
+          e.getCause().getMessage().contains("INSUFFICIENT_LIQ")
+        ) {
+          log.info("Pool has insufficient liquidity.");
+        } else {
+          log.error("Swap tx failed.", e);
+        }
       }
     }
 
@@ -309,7 +303,8 @@ public class Sniper implements CommandLineRunner {
     final Token outToken,
     final BigInteger inAmount,
     final String to
-  ) {
+  )
+    throws InterruptedException {
     txManager.enableManualNonceIncrement(true);
 
     log.info(
@@ -320,8 +315,14 @@ public class Sniper implements CommandLineRunner {
     );
 
     // Get the tx limit here.
-    // final var tokenInTxLimit = BigInteger.ZERO;
-    final var tokenInTxLimit = converter.fromHuman(0.02, inToken.getDecimals());
+    final var tokenInTxLimit = inToken.getMaxTxAmount();
+
+    log.info(
+      "Max tx amount: {} {}",
+      converter.toHuman(tokenInTxLimit, inToken.getDecimals()),
+      inToken.getSymbol()
+    );
+
     final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
     BigInteger inAmountLeft = inAmount;
 
@@ -352,7 +353,15 @@ public class Sniper implements CommandLineRunner {
         txs.add(tx.sendAsync());
         inAmountLeft = inAmountLeft.subtract(inAmountForTx);
       } catch (final Exception e) {
-        log.error("Swap tx failed.", e);
+        if (
+          e.getCause() != null &&
+          e.getCause().getMessage() != null &&
+          e.getCause().getMessage().contains("INSUFFICIENT_LIQ")
+        ) {
+          log.info("Pool has insufficient liquidity.");
+        } else {
+          log.error("Swap tx failed.", e);
+        }
       }
     }
 

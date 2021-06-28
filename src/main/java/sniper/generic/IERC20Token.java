@@ -2,7 +2,7 @@ package sniper.generic;
 
 import java.math.BigInteger;
 import lombok.extern.log4j.Log4j2;
-import org.web3j.generated.contracts.IERC20;
+import org.web3j.generated.contracts.BabyKrakenToken;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -15,7 +15,7 @@ import sniper.Token;
 @Log4j2
 public class IERC20Token implements Token {
 
-  private final IERC20 ierc20;
+  private final BabyKrakenToken ierc20;
   private final TransactionManager txManager;
   private final BigInteger decimals;
   private final String symbol;
@@ -35,7 +35,8 @@ public class IERC20Token implements Token {
       () -> gasProvider
     );
 
-    this.ierc20 = IERC20.load(contractAddress, web3j, txManager, gasProvider);
+    this.ierc20 =
+      BabyKrakenToken.load(contractAddress, web3j, txManager, gasProvider);
     this.txManager = txManager;
 
     try {
@@ -90,5 +91,14 @@ public class IERC20Token implements Token {
   public String getSymbol() {
     log.traceEntry();
     return log.traceExit(symbol);
+  }
+
+  @Override
+  public BigInteger getMaxTxAmount() {
+    try {
+      return ierc20._maxTxAmount().send();
+    } catch (final Exception e) {
+      throw new SniperException("Failed to get max tx amount.", e);
+    }
   }
 }

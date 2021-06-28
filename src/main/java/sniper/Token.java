@@ -13,4 +13,6 @@ public interface Token {
   );
   BigInteger getDecimals();
   String getSymbol();
+
+  BigInteger getMaxTxAmount();
 }
