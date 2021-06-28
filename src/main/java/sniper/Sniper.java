@@ -2,7 +2,6 @@ package sniper;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -88,13 +87,6 @@ public class Sniper implements CommandLineRunner {
     }
 
     // define our conditions for swapping
-
-    // while (!outToken.isTradingEnabled() || outToken.isWhiteListTrading()) {
-    //   log.info("Is trading enabled: {}", outToken.isTradingEnabled());
-    //   log.info("Is white list trading: {}", outToken.isWhiteListTrading());
-    //   log.info("Unable to trade yet, waiting...");
-    //   Thread.sleep(loopPauseInMillis);
-    // }
 
     // conditions have been met, swap
 
@@ -229,7 +221,7 @@ public class Sniper implements CommandLineRunner {
 
     while (inAmountLeft.compareTo(BigInteger.ZERO) > 0) {
       try {
-        var tokenOutTxLimit = outToken.getBalanceLimit();
+        var tokenOutTxLimit = outToken.getMaxTxAmount();
 
         log.info(
           "Max tx amount is {} {}",
@@ -394,7 +386,7 @@ public class Sniper implements CommandLineRunner {
     );
 
     // Get the tx limit here.
-    final var tokenInTxLimit = inToken.getSellLimit();
+    final var tokenInTxLimit = inToken.getMaxTxAmount();
 
     log.info(
       "Max tx amount: {} {}",
@@ -402,11 +394,6 @@ public class Sniper implements CommandLineRunner {
       inToken.getSymbol()
     );
 
-    final var sellLockTime = Duration.ofMillis(
-      (long) (
-        (double) inToken.getSellLockTimeInSeconds().longValue() * 1000.0 * 1.15
-      )
-    );
     final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
     BigInteger inAmountLeft = inAmount;
 
@@ -458,13 +445,6 @@ public class Sniper implements CommandLineRunner {
 
         txs.add(tx.sendAsync());
         inAmountLeft = inAmountLeft.subtract(inAmountForTx);
-
-        log.info(
-          "Sleeping for {} seconds to avoid sell lock time...",
-          sellLockTime.toSeconds()
-        );
-
-        Thread.sleep(sellLockTime.toMillis());
       } catch (final Exception e) {
         if (
           e.getCause() != null &&

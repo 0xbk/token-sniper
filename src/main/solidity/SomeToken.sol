@@ -1,6 +1,6 @@
 import "./IERC20.sol";
 
-abstract contract BabyKrakenToken is IERC20  {
+abstract contract SomeToken is IERC20  {
     uint256 public _maxTxAmount;
     address public uniswapV2Pair;
 

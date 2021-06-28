@@ -2,7 +2,7 @@ package sniper.generic;
 
 import java.math.BigInteger;
 import lombok.extern.log4j.Log4j2;
-import org.web3j.generated.contracts.PrintrToken;
+import org.web3j.generated.contracts.SomeToken;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -15,7 +15,7 @@ import sniper.Token;
 @Log4j2
 public class IERC20Token implements Token {
 
-  private final PrintrToken ierc20;
+  private final SomeToken ierc20;
   private final TransactionManager txManager;
   private final BigInteger decimals;
   private final String symbol;
@@ -36,7 +36,7 @@ public class IERC20Token implements Token {
     );
 
     this.ierc20 =
-      PrintrToken.load(contractAddress, web3j, txManager, gasProvider);
+      SomeToken.load(contractAddress, web3j, txManager, gasProvider);
     this.txManager = txManager;
 
     try {
@@ -92,47 +92,20 @@ public class IERC20Token implements Token {
   }
 
   @Override
-  public BigInteger getBalanceLimit() {
+  public BigInteger getMaxTxAmount() {
     try {
-      return ierc20.balanceLimit().send();
+      return ierc20._maxTxAmount().send();
     } catch (final Exception e) {
-      throw new SniperException("Failed to get balance limit.", e);
+      throw new SniperException("Failed to get max tx amount.", e);
     }
   }
 
   @Override
-  public BigInteger getSellLimit() {
+  public String getUniswapV2Pair() {
     try {
-      return ierc20.sellLimit().send();
+      return ierc20.uniswapV2Pair().send();
     } catch (final Exception e) {
-      throw new SniperException("Failed to get sell limit.", e);
-    }
-  }
-
-  @Override
-  public boolean isTradingEnabled() {
-    try {
-      return ierc20.tradingEnabled().send();
-    } catch (final Exception e) {
-      throw new SniperException("Failed to get is trading enabled.", e);
-    }
-  }
-
-  @Override
-  public boolean isWhiteListTrading() {
-    try {
-      return ierc20.whiteListTrading().send();
-    } catch (final Exception e) {
-      throw new SniperException("Failed to get is white list trading.", e);
-    }
-  }
-
-  @Override
-  public BigInteger getSellLockTimeInSeconds() {
-    try {
-      return ierc20.getSellLockTimeInSeconds().send();
-    } catch (final Exception e) {
-      throw new SniperException("Failed to get sell lock time in seconds.", e);
+      throw new SniperException("Failed to get uniswap v2 pair.", e);
     }
   }
 }

@@ -68,30 +68,36 @@ public class EstimatingGasProvider implements ContractGasProvider {
       data
     );
 
+    BigInteger gasLimit;
+
     try {
-      final var gasLimit = web3j
-        .ethEstimateGas(transaction)
-        .send()
-        .getAmountUsed();
-      final var gasLimitWithMultiplier = BigInteger.valueOf(
-        BigDecimal
-          .valueOf(gasLimit.doubleValue())
-          .multiply(BigDecimal.valueOf(gasLimitConfig.getMultiplier()))
-          .longValue()
-      );
-
-      log.info(
-        "Gas limit for '{}' estimated to be {}; {} with multiplier of {}",
-        contractFunc,
-        gasLimit,
-        gasLimitWithMultiplier,
-        gasLimitConfig.getMultiplier()
-      );
-
-      return log.traceExit(gasLimitWithMultiplier);
+      gasLimit = web3j.ethEstimateGas(transaction).send().getAmountUsed();
     } catch (final IOException e) {
-      throw new SniperException("Failed to get the gas limit estimate.", e);
+      if (gasLimitConfig.getStaticValue().isPresent()) {
+        gasLimit = BigInteger.valueOf(gasLimitConfig.getStaticValue().get());
+
+        log.error(
+          "Failed to get the gas limit estimate, using static value {}",
+          gasLimitConfig.getStaticValue().get()
+        );
+      } else {
+        throw new SniperException("Failed to get the gas limit estimate.", e);
+      }
     }
+
+    final var gasLimitWithMultiplier = new BigDecimal(gasLimit)
+      .multiply(BigDecimal.valueOf(gasLimitConfig.getMultiplier()))
+      .toBigInteger();
+
+    log.info(
+      "Gas limit for '{}' estimated to be {}; {} with multiplier of {}",
+      contractFunc,
+      gasLimit,
+      gasLimitWithMultiplier,
+      gasLimitConfig.getMultiplier()
+    );
+
+    return log.traceExit(gasLimitWithMultiplier);
   }
 
   @Override
