@@ -2,7 +2,6 @@ package sniper.generic;
 
 import java.math.BigInteger;
 import lombok.extern.log4j.Log4j2;
-import org.web3j.generated.contracts.IERC20;
 import org.web3j.generated.contracts.PrintrToken;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.RemoteFunctionCall;
@@ -77,8 +76,6 @@ public class IERC20Token implements Token {
     final BigInteger amount
   ) {
     log.traceEntry(() -> spender, () -> amount);
-    log.info("Approving {} to spend {} {}", spender, amount, getSymbol());
-
     return log.traceExit(ierc20.approve(spender, amount));
   }
 

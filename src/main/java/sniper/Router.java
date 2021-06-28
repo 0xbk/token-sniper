@@ -20,6 +20,12 @@ public interface Router {
     final BigInteger amountIn,
     final String to
   );
+  RemoteFunctionCall<TransactionReceipt> swapExactTokensForAnyTokens(
+    final Token tokenIn,
+    final Token tokenOut,
+    final BigInteger amountIn,
+    final String to
+  );
   Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> swapTokensForExactTokens(
     final Token tokenIn,
     final Token tokenOut,

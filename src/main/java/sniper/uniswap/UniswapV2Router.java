@@ -150,18 +150,15 @@ public class UniswapV2Router implements Router {
     final var path = createSwapPath(tokenIn, tokenOut);
     final var amountOutMin = getAmountsOut(amountIn, path).get(path.size() - 1);
     final var amountOutMinWithSlippage = amountOutMin.subtract(
-      BigInteger.valueOf(
-        BigDecimal
-          .valueOf(amountOutMin.doubleValue())
-          .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
-          .longValue()
-      )
+      new BigDecimal(amountOutMin)
+        .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
+        .toBigInteger()
     );
 
     log.info(
       "Swap amount out min estimated to be {} {}; {} {} with {} slippage applied",
       converter.toHuman(amountOutMin, tokenOut.getDecimals()),
-      tokenIn.getSymbol(),
+      tokenOut.getSymbol(),
       converter.toHuman(amountOutMinWithSlippage, tokenOut.getDecimals()),
       tokenOut.getSymbol(),
       swapConfig.getSlippage()
@@ -192,6 +189,38 @@ public class UniswapV2Router implements Router {
     }
   }
 
+  public RemoteFunctionCall<TransactionReceipt> swapExactTokensForAnyTokens(
+    final Token tokenIn,
+    final Token tokenOut,
+    final BigInteger amountIn,
+    final String to
+  ) {
+    log.traceEntry(() -> tokenIn, () -> tokenOut, () -> amountIn, () -> to);
+
+    final var path = createSwapPath(tokenIn, tokenOut);
+
+    try {
+      final var deadline = web3j
+        .ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false)
+        .send()
+        .getBlock()
+        .getTimestamp()
+        .add(BigInteger.valueOf(60));
+
+      return log.traceExit(
+        router.swapExactTokensForTokens(
+          amountIn,
+          BigInteger.ZERO,
+          path.stream().map(Token::getAddress).collect(Collectors.toList()),
+          to,
+          deadline
+        )
+      );
+    } catch (final Exception e) {
+      throw new SniperException("Failed to setup a swap tx.", e);
+    }
+  }
+
   public Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> swapTokensForExactTokens(
     final Token tokenIn,
     final Token tokenOut,
@@ -203,12 +232,9 @@ public class UniswapV2Router implements Router {
     final var path = createSwapPath(tokenIn, tokenOut);
     final var amountInMax = getAmountsIn(amountOut, path).get(0);
     final var amountInMaxWithSlippage = amountInMax.add(
-      BigInteger.valueOf(
-        BigDecimal
-          .valueOf(amountInMax.doubleValue())
-          .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
-          .longValue()
-      )
+      new BigDecimal(amountInMax)
+        .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
+        .toBigInteger()
     );
 
     log.info(
@@ -216,7 +242,7 @@ public class UniswapV2Router implements Router {
       converter.toHuman(amountInMax, tokenIn.getDecimals()),
       tokenIn.getSymbol(),
       converter.toHuman(amountInMaxWithSlippage, tokenIn.getDecimals()),
-      tokenOut.getSymbol(),
+      tokenIn.getSymbol(),
       swapConfig.getSlippage()
     );
 
