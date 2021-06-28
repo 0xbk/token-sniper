@@ -3,6 +3,7 @@ package sniper.generic;
 import java.math.BigInteger;
 import lombok.extern.log4j.Log4j2;
 import org.web3j.generated.contracts.IERC20;
+import org.web3j.generated.contracts.PrintrToken;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
@@ -15,7 +16,7 @@ import sniper.Token;
 @Log4j2
 public class IERC20Token implements Token {
 
-  private final IERC20 ierc20;
+  private final PrintrToken ierc20;
   private final TransactionManager txManager;
   private final BigInteger decimals;
   private final String symbol;
@@ -35,7 +36,8 @@ public class IERC20Token implements Token {
       () -> gasProvider
     );
 
-    this.ierc20 = IERC20.load(contractAddress, web3j, txManager, gasProvider);
+    this.ierc20 =
+      PrintrToken.load(contractAddress, web3j, txManager, gasProvider);
     this.txManager = txManager;
 
     try {
@@ -90,5 +92,50 @@ public class IERC20Token implements Token {
   public String getSymbol() {
     log.traceEntry();
     return log.traceExit(symbol);
+  }
+
+  @Override
+  public BigInteger getBalanceLimit() {
+    try {
+      return ierc20.balanceLimit().send();
+    } catch (final Exception e) {
+      throw new SniperException("Failed to get balance limit.", e);
+    }
+  }
+
+  @Override
+  public BigInteger getSellLimit() {
+    try {
+      return ierc20.sellLimit().send();
+    } catch (final Exception e) {
+      throw new SniperException("Failed to get sell limit.", e);
+    }
+  }
+
+  @Override
+  public boolean isTradingEnabled() {
+    try {
+      return ierc20.tradingEnabled().send();
+    } catch (final Exception e) {
+      throw new SniperException("Failed to get is trading enabled.", e);
+    }
+  }
+
+  @Override
+  public boolean isWhiteListTrading() {
+    try {
+      return ierc20.whiteListTrading().send();
+    } catch (final Exception e) {
+      throw new SniperException("Failed to get is white list trading.", e);
+    }
+  }
+
+  @Override
+  public BigInteger getSellLockTimeInSeconds() {
+    try {
+      return ierc20.getSellLockTimeInSeconds().send();
+    } catch (final Exception e) {
+      throw new SniperException("Failed to get sell lock time in seconds.", e);
+    }
   }
 }

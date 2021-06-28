@@ -13,4 +13,10 @@ public interface Token {
   );
   BigInteger getDecimals();
   String getSymbol();
+
+  BigInteger getBalanceLimit();
+  BigInteger getSellLimit();
+  boolean isTradingEnabled();
+  boolean isWhiteListTrading();
+  BigInteger getSellLockTimeInSeconds();
 }
