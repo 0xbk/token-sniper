@@ -63,6 +63,8 @@ public class Sniper implements CommandLineRunner {
 
     if (config.getMode() == Mode.APPROVE_TOKENS) {
       approveTokens(inToken, outToken, inAmount);
+
+      return;
     } else {
       approveToken(inToken, inAmount.multiply(BigInteger.TWO));
     }
@@ -218,54 +220,62 @@ public class Sniper implements CommandLineRunner {
 
     final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
     BigInteger inAmountLeft = inAmount;
+    BigInteger tokenOutTxLimit = null;
+
+    Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> tokenInMaxAndTx =
+      null;
+
+    while (tokenInMaxAndTx == null) {
+      try {
+        tokenOutTxLimit = outToken.getMaxTxAmount();
+        // tokenOutTxLimit = converter.fromHuman(0.02, outToken.getDecimals());
+
+        tokenInMaxAndTx =
+          router.swapTokensForExactTokens(
+            inToken,
+            outToken,
+            tokenOutTxLimit,
+            to
+          );
+      } catch (final SniperException e) {
+        if (
+          e.getCause() != null &&
+          e.getCause().getMessage() != null &&
+          e.getCause().getMessage().contains("sub-underflow")
+        ) {
+          tokenOutTxLimit =
+            new BigDecimal(tokenOutTxLimit)
+              .multiply(BigDecimal.valueOf(0.5))
+              .toBigInteger();
+
+          log.info(
+            "Underflow error, reducing max tx amount to {} {}",
+            converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
+            outToken.getSymbol()
+          );
+        } else if (
+          e.getCause() != null &&
+          e.getCause().getMessage() != null &&
+          e.getCause().getMessage().contains("INSUFFICIENT_LIQ")
+        ) {
+          log.info("Pool has insufficient liquidity.");
+        } else {
+          log.error("Swap tx failed.", e);
+        }
+      }
+    }
+
+    log.info(
+      "Max tx amount is {} {}",
+      converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
+      outToken.getSymbol()
+    );
+
+    final var tokenInMax = tokenInMaxAndTx.getLeft();
+    final var tokenIn = tokenInMax.divide(BigInteger.TWO);
 
     while (inAmountLeft.compareTo(BigInteger.ZERO) > 0) {
       try {
-        var tokenOutTxLimit = outToken.getMaxTxAmount();
-
-        log.info(
-          "Max tx amount is {} {}",
-          converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
-          outToken.getSymbol()
-        );
-
-        Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> tokenInMaxAndTx =
-          null;
-
-        while (tokenInMaxAndTx == null) {
-          try {
-            tokenInMaxAndTx =
-              router.swapTokensForExactTokens(
-                inToken,
-                outToken,
-                tokenOutTxLimit,
-                to
-              );
-          } catch (final SniperException e) {
-            if (
-              e.getCause() != null &&
-              e.getCause().getMessage() != null &&
-              e.getCause().getMessage().contains("sub-underflow")
-            ) {
-              tokenOutTxLimit =
-                new BigDecimal(tokenOutTxLimit)
-                  .multiply(BigDecimal.valueOf(0.5))
-                  .toBigInteger();
-
-              log.info(
-                "Underflow error, reducing max tx amount to {} {}",
-                converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
-                outToken.getSymbol()
-              );
-            } else {
-              throw e;
-            }
-          }
-        }
-
-        final var tokenInMax = tokenInMaxAndTx.getLeft();
-        final var tokenIn = tokenInMax.divide(BigInteger.TWO);
-
         log.info(
           "Reducing token in max from {} to {} {}",
           converter.toHuman(tokenInMax, inToken.getDecimals()),
@@ -386,7 +396,8 @@ public class Sniper implements CommandLineRunner {
     );
 
     // Get the tx limit here.
-    final var tokenInTxLimit = inToken.getMaxTxAmount();
+    // final var tokenInTxLimit = inToken.getMaxTxAmount();
+    final var tokenInTxLimit = converter.fromHuman(0.02, outToken.getDecimals());
 
     log.info(
       "Max tx amount: {} {}",

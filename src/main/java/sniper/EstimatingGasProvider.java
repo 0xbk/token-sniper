@@ -1,6 +1,5 @@
 package sniper;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import lombok.extern.log4j.Log4j2;
@@ -72,17 +71,13 @@ public class EstimatingGasProvider implements ContractGasProvider {
 
     try {
       gasLimit = web3j.ethEstimateGas(transaction).send().getAmountUsed();
-    } catch (final IOException e) {
-      if (gasLimitConfig.getStaticValue().isPresent()) {
-        gasLimit = BigInteger.valueOf(gasLimitConfig.getStaticValue().get());
+    } catch (final Exception e) {
+      gasLimit = BigInteger.valueOf(gasLimitConfig.getStaticValue());
 
-        log.error(
-          "Failed to get the gas limit estimate, using static value {}",
-          gasLimitConfig.getStaticValue().get()
-        );
-      } else {
-        throw new SniperException("Failed to get the gas limit estimate.", e);
-      }
+      log.error(
+        "Failed to get the gas limit estimate, using static value {}",
+        gasLimitConfig.getStaticValue()
+      );
     }
 
     final var gasLimitWithMultiplier = new BigDecimal(gasLimit)

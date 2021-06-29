@@ -2,8 +2,8 @@
 rpc.url=https://bsc-dataseed.binance.org/
 rpc.chainId=56
 
-gas.limit.multiplier=1.2
-gas.limit.static=300000
+gas.limit.multiplier=1.5
+gas.limit.staticValue=300000
 #gas.price.multiplier=1.5
 gas.price.staticInGwei=5
 
@@ -29,20 +29,36 @@ dryRun=true
 
 swap.slippage=0.0
 
-# BUSD
-lp.token0=0xe9e7cea3dedca5984780bafc599bd69add087d56
+# ND
+lp.token0=0xC45A7DC7F6e3e20168FBbBE0Bd8258a0B76fec05
 # WBNB
 lp.token1=0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
 
-# Test Buy USDC
+# Buy ND
 mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT
 # BUSD
 swap.in.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
-swap.in.amount=0.05
-# USDC
-swap.out.token=0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d
+swap.in.amount=500
+# ND
+swap.out.token=0xC45A7DC7F6e3e20168FBbBE0Bd8258a0B76fec05
 
-# Test SELL USDC
+# SELL ND
+#mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
+#ND 
+#swap.in.token=0xC45A7DC7F6e3e20168FBbBE0Bd8258a0B76fec05
+#swap.in.amount=0.05
+# BUSD
+#swap.out.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
+
+# Test buy USDC
+#mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT
+# BUSD
+#swap.in.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
+#swap.in.amount=0.05
+# USDC
+#swap.out.token=0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d
+
+# SELL ND
 #mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
 # USDC
 #swap.in.token=0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d
