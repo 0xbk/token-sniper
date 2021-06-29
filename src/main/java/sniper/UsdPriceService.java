@@ -2,7 +2,6 @@ package sniper;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.Arrays;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -36,14 +35,13 @@ public class UsdPriceService {
       return BigDecimal.ONE;
     }
 
-    final BigInteger amountOut = router
-      .getAmountsOut(
-        BigInteger.ONE.multiply(
-          BigInteger.TEN.pow(token.getDecimals().intValue())
-        ),
-        Arrays.asList(token, usd1)
+    final BigInteger amountOut = router.getAmountOut(
+      token,
+      usd1,
+      BigInteger.ONE.multiply(
+        BigInteger.TEN.pow(token.getDecimals().intValue())
       )
-      .get(1);
+    );
 
     return log.traceExit(
       BigDecimal

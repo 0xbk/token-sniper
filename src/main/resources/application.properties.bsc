@@ -29,26 +29,26 @@ dryRun=false
 
 swap.slippage=0.0
 
-# GABR
-lp.token0=0xA610e3b12641AbEFD4383B0889e51756E490dBf0
+# iBNB
+lp.token0=0x830F7A104a3dF30879D526031D57DAa44BF85686
 # WBNB
 lp.token1=0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
 
-# Buy GABR
-mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT
+# Buy iBNB
+#mode=SINGLE_SWAP_ALL_TOKEN_IN
 # BUSD
-swap.in.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
-swap.in.amount=200
-# GABR
-swap.out.token=0xA610e3b12641AbEFD4383B0889e51756E490dBf0
+#swap.in.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
+#swap.in.amount=200
+# iBNB
+#swap.out.token=0x830F7A104a3dF30879D526031D57DAa44BF85686
 
-# SELL GABR
-#mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
-# GABR
-#swap.in.token=0xA610e3b12641AbEFD4383B0889e51756E490dBf0
-#swap.in.amount=0.05
+# SELL iBNB
+mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
+# iBNB
+swap.in.token=0x830F7A104a3dF30879D526031D57DAa44BF85686
+swap.in.amount=78043561
 # BUSD
-#swap.out.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
+swap.out.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
 
 # Test buy USDC
 #mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT

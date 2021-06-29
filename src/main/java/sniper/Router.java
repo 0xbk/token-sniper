@@ -12,12 +12,13 @@ public interface Router {
   Factory getFactory();
   RouterConfig.Type getType();
   Token getWeth();
-  List<BigInteger> getAmountsOut(final BigInteger amountIn, List<Token> path);
+  BigInteger getAmountOut(final Token tokenIn, final Token tokenOut, final BigInteger amountIn);
   List<BigInteger> getAmountsIn(final BigInteger amountOut, List<Token> path);
   Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> swapExactTokensForTokens(
     final Token tokenIn,
     final Token tokenOut,
     final BigInteger amountIn,
+    final BigInteger amountOutMin,
     final String to
   );
   RemoteFunctionCall<TransactionReceipt> swapExactTokensForAnyTokens(
@@ -29,6 +30,7 @@ public interface Router {
   Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> swapTokensForExactTokens(
     final Token tokenIn,
     final Token tokenOut,
+    final BigInteger amountInMax,
     final BigInteger amountOut,
     final String to
   );

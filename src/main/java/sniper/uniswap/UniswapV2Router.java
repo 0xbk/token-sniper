@@ -97,13 +97,14 @@ public class UniswapV2Router implements Router {
     return weth;
   }
 
-  @SuppressWarnings("unchecked")
-  public List<BigInteger> getAmountsOut(
-    final BigInteger amountIn,
-    List<Token> path
+  public BigInteger getAmountOut(
+    final Token tokenIn,
+    final Token tokenOut,
+    final BigInteger amountIn
   ) {
-    log.traceEntry(() -> amountIn, () -> path);
+    log.traceEntry(() -> tokenIn, () -> tokenOut, () -> amountIn);
 
+    final var path = createSwapPath(tokenIn, tokenOut);
     final var pathContractAddresses = path
       .stream()
       .map(Token::getAddress)
@@ -111,10 +112,13 @@ public class UniswapV2Router implements Router {
 
     try {
       return log.traceExit(
-        router.getAmountsOut(amountIn, pathContractAddresses).send()
+        (BigInteger) router
+          .getAmountsOut(amountIn, pathContractAddresses)
+          .send()
+          .get(path.size() - 1)
       );
     } catch (final Exception e) {
-      throw new SniperException("Failed to get the amounts out.", e);
+      throw new SniperException("Failed to get the amount out.", e);
     }
   }
 
@@ -143,12 +147,12 @@ public class UniswapV2Router implements Router {
     final Token tokenIn,
     final Token tokenOut,
     final BigInteger amountIn,
+    final BigInteger amountOutMin,
     final String to
   ) {
     log.traceEntry(() -> tokenIn, () -> tokenOut, () -> amountIn, () -> to);
 
     final var path = createSwapPath(tokenIn, tokenOut);
-    final var amountOutMin = getAmountsOut(amountIn, path).get(path.size() - 1);
     final var amountOutMinWithSlippage = amountOutMin.subtract(
       new BigDecimal(amountOutMin)
         .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
@@ -224,13 +228,13 @@ public class UniswapV2Router implements Router {
   public Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> swapTokensForExactTokens(
     final Token tokenIn,
     final Token tokenOut,
+    final BigInteger amountInMax,
     final BigInteger amountOut,
     final String to
   ) {
     log.traceEntry(() -> tokenIn, () -> tokenOut, () -> amountOut, () -> to);
 
     final var path = createSwapPath(tokenIn, tokenOut);
-    final var amountInMax = getAmountsIn(amountOut, path).get(0);
     final var amountInMaxWithSlippage = amountInMax.add(
       new BigDecimal(amountInMax)
         .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
