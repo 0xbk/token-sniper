@@ -90,6 +90,28 @@ public class Sniper implements CommandLineRunner {
 
     // define our conditions for swapping
 
+    final var feeThreshold = BigInteger.valueOf(20);
+    BigInteger feeTotal;
+
+    do {
+      feeTotal =
+        outToken
+          .getLiquidityFee()
+          .add(outToken.getMarketingFee())
+          .add(outToken.getBurnFee())
+          .add(outToken.getPotFee());
+
+      log.info(
+        "Fees: {} (liq) + {} (mkt) + {} (burn) + {} (pot) > {} : {}",
+        outToken.getLiquidityFee(),
+        outToken.getMarketingFee(),
+        outToken.getBurnFee(),
+        outToken.getPotFee(),
+        feeThreshold,
+        feeTotal.compareTo(feeThreshold) > 0
+      );
+    } while (feeTotal.compareTo(feeThreshold) > 0);
+
     // conditions have been met, swap
 
     if (config.getMode() == Mode.SINGLE_SWAP_ALL_TOKEN_IN) {
@@ -220,16 +242,20 @@ public class Sniper implements CommandLineRunner {
 
     final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
     BigInteger inAmountLeft = inAmount;
-    BigInteger tokenOutTxLimit = null;
+    BigInteger tokenOutTxLimit = outToken.getMaxTxAmount();
+    // BigInteger tokenOutTxLimit = converter.fromHuman(0.02, outToken.getDecimals());
+
+    log.info(
+      "Max tx amount is {} {}",
+      converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
+      outToken.getSymbol()
+    );
 
     Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> tokenInMaxAndTx =
       null;
 
     while (tokenInMaxAndTx == null) {
       try {
-        tokenOutTxLimit = outToken.getMaxTxAmount();
-        // tokenOutTxLimit = converter.fromHuman(0.02, outToken.getDecimals());
-
         tokenInMaxAndTx =
           router.swapTokensForExactTokens(
             inToken,
@@ -241,38 +267,23 @@ public class Sniper implements CommandLineRunner {
         if (
           e.getCause() != null &&
           e.getCause().getMessage() != null &&
-          e.getCause().getMessage().contains("sub-underflow")
-        ) {
-          tokenOutTxLimit =
-            new BigDecimal(tokenOutTxLimit)
-              .multiply(BigDecimal.valueOf(0.5))
-              .toBigInteger();
-
-          log.info(
-            "Underflow error, reducing max tx amount to {} {}",
-            converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
-            outToken.getSymbol()
-          );
-        } else if (
-          e.getCause() != null &&
-          e.getCause().getMessage() != null &&
           e.getCause().getMessage().contains("INSUFFICIENT_LIQ")
         ) {
           log.info("Pool has insufficient liquidity.");
         } else {
-          log.error("Swap tx failed.", e);
+          log.info("Swap tx failed: {}", e.getMessage());
+
+          if (e.getCause() != null && e.getCause().getMessage() != null) {
+            log.info("Cause: {}", e.getCause().getMessage());
+          }
         }
       }
     }
 
-    log.info(
-      "Max tx amount is {} {}",
-      converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
-      outToken.getSymbol()
-    );
-
     final var tokenInMax = tokenInMaxAndTx.getLeft();
-    final var tokenIn = tokenInMax.divide(BigInteger.TWO);
+    final var tokenIn = new BigDecimal(tokenInMax)
+      .multiply(BigDecimal.valueOf(0.9))
+      .toBigInteger();
 
     while (inAmountLeft.compareTo(BigInteger.ZERO) > 0) {
       try {
@@ -327,7 +338,11 @@ public class Sniper implements CommandLineRunner {
         ) {
           log.info("Pool has insufficient liquidity.");
         } else {
-          log.error("Swap tx failed.", e);
+          log.info("Swap tx failed: {}", e.getMessage());
+
+          if (e.getCause() != null && e.getCause().getMessage() != null) {
+            log.info("Cause: {}", e.getCause().getMessage());
+          }
         }
       }
     }
@@ -396,8 +411,8 @@ public class Sniper implements CommandLineRunner {
     );
 
     // Get the tx limit here.
-    // final var tokenInTxLimit = inToken.getMaxTxAmount();
-    final var tokenInTxLimit = converter.fromHuman(0.02, outToken.getDecimals());
+    final var tokenInTxLimit = inToken.getMaxTxAmount();
+    // final var tokenInTxLimit = converter.fromHuman(0.02, outToken.getDecimals());
 
     log.info(
       "Max tx amount: {} {}",
@@ -429,20 +444,15 @@ public class Sniper implements CommandLineRunner {
             if (
               e.getCause() != null &&
               e.getCause().getMessage() != null &&
-              e.getCause().getMessage().contains("sub-underflow")
+              e.getCause().getMessage().contains("INSUFFICIENT_LIQ")
             ) {
-              inAmountForTx =
-                new BigDecimal(inAmountForTx)
-                  .multiply(BigDecimal.valueOf(0.5))
-                  .toBigInteger();
-
-              log.info(
-                "Underflow error, reducing max tx amount to {} {}",
-                converter.toHuman(inAmountForTx, outToken.getDecimals()),
-                outToken.getSymbol()
-              );
+              log.info("Pool has insufficient liquidity.");
             } else {
-              throw e;
+              log.info("Swap tx failed: {}", e.getMessage());
+
+              if (e.getCause() != null && e.getCause().getMessage() != null) {
+                log.info("Cause: {}", e.getCause().getMessage());
+              }
             }
           }
         }
