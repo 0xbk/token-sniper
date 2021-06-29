@@ -17,7 +17,5 @@ public interface Token {
   BigInteger getMaxTxAmount();
   String getUniswapV2Pair();
   BigInteger getLiquidityFee();
-  BigInteger getMarketingFee();
-  BigInteger getBurnFee();
-  BigInteger getPotFee();
+  BigInteger getTaxFee();
 }

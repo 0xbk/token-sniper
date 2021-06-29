@@ -90,23 +90,16 @@ public class Sniper implements CommandLineRunner {
 
     // define our conditions for swapping
 
-    final var feeThreshold = BigInteger.valueOf(20);
+    final var feeThreshold = BigInteger.valueOf(15);
     BigInteger feeTotal;
 
     do {
-      feeTotal =
-        outToken
-          .getLiquidityFee()
-          .add(outToken.getMarketingFee())
-          .add(outToken.getBurnFee())
-          .add(outToken.getPotFee());
+      feeTotal = outToken.getLiquidityFee().add(outToken.getTaxFee());
 
       log.info(
-        "Fees: {} (liq) + {} (mkt) + {} (burn) + {} (pot) > {} : {}",
+        "Fees: {} (liq) + {} (tax) > {} : {}",
         outToken.getLiquidityFee(),
-        outToken.getMarketingFee(),
-        outToken.getBurnFee(),
-        outToken.getPotFee(),
+        outToken.getTaxFee(),
         feeThreshold,
         feeTotal.compareTo(feeThreshold) > 0
       );
@@ -242,20 +235,21 @@ public class Sniper implements CommandLineRunner {
 
     final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
     BigInteger inAmountLeft = inAmount;
-    BigInteger tokenOutTxLimit = outToken.getMaxTxAmount();
     // BigInteger tokenOutTxLimit = converter.fromHuman(0.02, outToken.getDecimals());
-
-    log.info(
-      "Max tx amount is {} {}",
-      converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
-      outToken.getSymbol()
-    );
 
     Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> tokenInMaxAndTx =
       null;
 
     while (tokenInMaxAndTx == null) {
       try {
+        final BigInteger tokenOutTxLimit = outToken.getMaxTxAmount();
+
+        log.info(
+          "Max tx amount is {} {}",
+          converter.toHuman(tokenOutTxLimit, outToken.getDecimals()),
+          outToken.getSymbol()
+        );
+
         tokenInMaxAndTx =
           router.swapTokensForExactTokens(
             inToken,
@@ -285,15 +279,15 @@ public class Sniper implements CommandLineRunner {
       .multiply(BigDecimal.valueOf(0.9))
       .toBigInteger();
 
+    log.info(
+      "Reducing token in max from {} to {} {}",
+      converter.toHuman(tokenInMax, inToken.getDecimals()),
+      converter.toHuman(tokenIn, inToken.getDecimals()),
+      inToken.getSymbol()
+    );
+
     while (inAmountLeft.compareTo(BigInteger.ZERO) > 0) {
       try {
-        log.info(
-          "Reducing token in max from {} to {} {}",
-          converter.toHuman(tokenInMax, inToken.getDecimals()),
-          converter.toHuman(tokenIn, inToken.getDecimals()),
-          inToken.getSymbol()
-        );
-
         if (inAmountLeft.compareTo(tokenIn) > 0) {
           // Normal swapTokensForExactTokens.
 
@@ -411,20 +405,21 @@ public class Sniper implements CommandLineRunner {
     );
 
     // Get the tx limit here.
-    final var tokenInTxLimit = inToken.getMaxTxAmount();
     // final var tokenInTxLimit = converter.fromHuman(0.02, outToken.getDecimals());
-
-    log.info(
-      "Max tx amount: {} {}",
-      converter.toHuman(tokenInTxLimit, inToken.getDecimals()),
-      inToken.getSymbol()
-    );
 
     final List<CompletableFuture<TransactionReceipt>> txs = new LinkedList<>();
     BigInteger inAmountLeft = inAmount;
 
     while (inAmountLeft.compareTo(BigInteger.ZERO) > 0) {
-      var inAmountForTx = inAmountLeft.compareTo(tokenInTxLimit) > 0
+      final var tokenInTxLimit = inToken.getMaxTxAmount();
+
+      log.info(
+        "Max tx amount: {} {}",
+        converter.toHuman(tokenInTxLimit, inToken.getDecimals()),
+        inToken.getSymbol()
+      );
+
+      final var inAmountForTx = inAmountLeft.compareTo(tokenInTxLimit) > 0
         ? tokenInTxLimit
         : inAmountLeft;
 

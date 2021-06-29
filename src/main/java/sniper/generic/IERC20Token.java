@@ -119,29 +119,11 @@ public class IERC20Token implements Token {
   }
 
   @Override
-  public BigInteger getMarketingFee() {
+  public BigInteger getTaxFee() {
     try {
-      return ierc20._marketingFee().send();
+      return ierc20._taxFee().send();
     } catch (final Exception e) {
-      throw new SniperException("Failed to get marketing fee.", e);
-    }
-  }
-
-  @Override
-  public BigInteger getBurnFee() {
-    try {
-      return ierc20._burnFee().send();
-    } catch (final Exception e) {
-      throw new SniperException("Failed to get burn fee.", e);
-    }
-  }
-
-  @Override
-  public BigInteger getPotFee() {
-    try {
-      return ierc20._potFee().send();
-    } catch (final Exception e) {
-      throw new SniperException("Failed to get pot fee.", e);
+      throw new SniperException("Failed to get tax fee.", e);
     }
   }
 }
