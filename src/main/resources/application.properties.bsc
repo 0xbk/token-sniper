@@ -20,8 +20,8 @@ peg.usd1DollarAddress=0xe9e7cea3dedca5984780bafc599bd69add087d56
 router.address=0x10ED43C718714eb63d5aA57B78B54704E256024E
 router.type=UNISWAPV2
 
-dryRun=false
-#dryRun=true
+#dryRun=false
+dryRun=true
 #mode=APPROVE_TOKENS
 #mode=SINGLE_SWAP_ALL_TOKEN_IN
 #mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT
@@ -29,26 +29,26 @@ dryRun=false
 
 swap.slippage=0.0
 
-# iBNB
-lp.token0=0x830F7A104a3dF30879D526031D57DAa44BF85686
+# LUCKY
+lp.token0=0x622Af0D4e9d6B62E4f7cA2a58bA0B3b1B6D62396
 # WBNB
 lp.token1=0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
 
-# Buy iBNB
-#mode=SINGLE_SWAP_ALL_TOKEN_IN
+# Buy LUCKY
+mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT
 # BUSD
-#swap.in.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
-#swap.in.amount=200
-# iBNB
-#swap.out.token=0x830F7A104a3dF30879D526031D57DAa44BF85686
+swap.in.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
+swap.in.amount=0.05
+# LUCKY
+swap.out.token=0x622Af0D4e9d6B62E4f7cA2a58bA0B3b1B6D62396
 
-# SELL iBNB
-mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
-# iBNB
-swap.in.token=0x830F7A104a3dF30879D526031D57DAa44BF85686
-swap.in.amount=78043561
+# SELL LUCKY
+#mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
+# LUCKY
+#swap.in.token=0x622Af0D4e9d6B62E4f7cA2a58bA0B3b1B6D62396
+#swap.in.amount=78043561
 # BUSD
-swap.out.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
+#swap.out.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
 
 # Test buy USDC
 #mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT
@@ -58,7 +58,7 @@ swap.out.token=0xe9e7cea3dedca5984780bafc599bd69add087d56
 # USDC
 #swap.out.token=0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d
 
-# SELL ND
+# Test sell USDC
 #mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
 # USDC
 #swap.in.token=0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d

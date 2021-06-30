@@ -122,13 +122,14 @@ public class UniswapV2Router implements Router {
     }
   }
 
-  @SuppressWarnings("unchecked")
-  public List<BigInteger> getAmountsIn(
-    final BigInteger amountOut,
-    List<Token> path
+  public BigInteger getAmountIn(
+    final Token tokenIn,
+    final Token tokenOut,
+    final BigInteger amountOut
   ) {
-    log.traceEntry(() -> amountOut, () -> path);
+    log.traceEntry(() -> tokenIn, () -> tokenOut, () -> amountOut);
 
+    final var path = createSwapPath(tokenIn, tokenOut);
     final var pathContractAddresses = path
       .stream()
       .map(Token::getAddress)
@@ -136,68 +137,34 @@ public class UniswapV2Router implements Router {
 
     try {
       return log.traceExit(
-        router.getAmountsIn(amountOut, pathContractAddresses).send()
+        (BigInteger) router
+          .getAmountsIn(amountOut, pathContractAddresses)
+          .send()
+          .get(0)
       );
     } catch (final Exception e) {
-      throw new SniperException("Failed to get the amounts in.", e);
+      throw new SniperException("Failed to get the amount in.", e);
     }
   }
 
-  public Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> swapExactTokensForTokens(
+  @FunctionalInterface
+  private interface SwapTokens {
+    RemoteFunctionCall<TransactionReceipt> doIt(
+      final BigInteger amountIn,
+      final BigInteger amountOutMin,
+      final List<String> path,
+      final String to,
+      final BigInteger deadline
+    );
+  }
+
+  public RemoteFunctionCall<TransactionReceipt> swapExactTokensForTokensCommon(
     final Token tokenIn,
     final Token tokenOut,
     final BigInteger amountIn,
     final BigInteger amountOutMin,
-    final String to
-  ) {
-    log.traceEntry(() -> tokenIn, () -> tokenOut, () -> amountIn, () -> to);
-
-    final var path = createSwapPath(tokenIn, tokenOut);
-    final var amountOutMinWithSlippage = amountOutMin.subtract(
-      new BigDecimal(amountOutMin)
-        .multiply(BigDecimal.valueOf(swapConfig.getSlippage()))
-        .toBigInteger()
-    );
-
-    log.info(
-      "Swap amount out min estimated to be {} {}; {} {} with {} slippage applied",
-      converter.toHuman(amountOutMin, tokenOut.getDecimals()),
-      tokenOut.getSymbol(),
-      converter.toHuman(amountOutMinWithSlippage, tokenOut.getDecimals()),
-      tokenOut.getSymbol(),
-      swapConfig.getSlippage()
-    );
-
-    try {
-      final var deadline = web3j
-        .ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false)
-        .send()
-        .getBlock()
-        .getTimestamp()
-        .add(BigInteger.valueOf(60));
-
-      return log.traceExit(
-        Pair.of(
-          amountOutMinWithSlippage,
-          router.swapExactTokensForTokens(
-            amountIn,
-            amountOutMinWithSlippage,
-            path.stream().map(Token::getAddress).collect(Collectors.toList()),
-            to,
-            deadline
-          )
-        )
-      );
-    } catch (final Exception e) {
-      throw new SniperException("Failed to setup a swap tx.", e);
-    }
-  }
-
-  public RemoteFunctionCall<TransactionReceipt> swapExactTokensForAnyTokens(
-    final Token tokenIn,
-    final Token tokenOut,
-    final BigInteger amountIn,
-    final String to
+    final String to,
+    final SwapTokens swapTokens
   ) {
     log.traceEntry(() -> tokenIn, () -> tokenOut, () -> amountIn, () -> to);
 
@@ -212,9 +179,9 @@ public class UniswapV2Router implements Router {
         .add(BigInteger.valueOf(60));
 
       return log.traceExit(
-        router.swapExactTokensForTokens(
+        swapTokens.doIt(
           amountIn,
-          BigInteger.ZERO,
+          amountOutMin,
           path.stream().map(Token::getAddress).collect(Collectors.toList()),
           to,
           deadline
@@ -223,6 +190,58 @@ public class UniswapV2Router implements Router {
     } catch (final Exception e) {
       throw new SniperException("Failed to setup a swap tx.", e);
     }
+  }
+
+  public RemoteFunctionCall<TransactionReceipt> swapExactTokensForTokens(
+    final Token tokenIn,
+    final Token tokenOut,
+    final BigInteger amountIn,
+    final BigInteger amountOutMin,
+    final String to
+  ) {
+    log.traceEntry(
+      () -> tokenIn,
+      () -> tokenOut,
+      () -> amountIn,
+      () -> amountOutMin,
+      () -> to
+    );
+    return log.traceExit(
+      swapExactTokensForTokensCommon(
+        tokenIn,
+        tokenOut,
+        amountIn,
+        amountOutMin,
+        to,
+        router::swapExactTokensForTokens
+      )
+    );
+  }
+
+  public RemoteFunctionCall<TransactionReceipt> swapExactTokensForTokensSupportingFeeOnTransferTokens(
+    final Token tokenIn,
+    final Token tokenOut,
+    final BigInteger amountIn,
+    final BigInteger amountOutMin,
+    final String to
+  ) {
+    log.traceEntry(
+      () -> tokenIn,
+      () -> tokenOut,
+      () -> amountIn,
+      () -> amountOutMin,
+      () -> to
+    );
+    return log.traceExit(
+      swapExactTokensForTokensCommon(
+        tokenIn,
+        tokenOut,
+        amountIn,
+        amountOutMin,
+        to,
+        router::swapExactTokensForTokensSupportingFeeOnTransferTokens
+      )
+    );
   }
 
   public Pair<BigInteger, RemoteFunctionCall<TransactionReceipt>> swapTokensForExactTokens(
