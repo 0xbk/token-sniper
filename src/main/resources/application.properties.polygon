@@ -1,6 +1,8 @@
 # Polygon mainnet
-rpc.url=https://matic-mainnet.chainstacklabs.com
+#rpc.url=https://rpc-mainnet.maticvigil.com
+#rpc.url=https://matic-mainnet.chainstacklabs.com
 #rpc.url=https://rpc-mainnet.matic.quiknode.pro
+rpc.url=https://matic-mainnet-full-rpc.bwarelabs.com
 rpc.chainId=137
 
 #gas.station.speed=safeLow
@@ -9,7 +11,8 @@ rpc.chainId=137
 gas.station.speed=fastest
 gas.station.url=https://gasstation-mainnet.matic.network/
 gas.limit.multiplier=1.2
-#gas.price.multiplier=1.5
+gas.limit.staticValue=300000
+gas.price.multiplier=2.0
 #gas.price.staticInGwei=5
 
 key.publicKey=
@@ -27,28 +30,33 @@ router.type=UNISWAPV2
 #uniFactory=0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac
 #uniRouter=0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F
 
-dryRun=false
-#dryRun=true
+#dryRun=false
+dryRun=true
+#mode=APPROVE_TOKENS
 #mode=SINGLE_SWAP_ALL_TOKEN_IN
 #mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT
-mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
+#mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
 
-swap.slippage=.01
+swap.slippage=0.0
 
-# USDC
-lp.token0=0x2791bca1f2de4661ed88a30c99a7a9449aa84174
-# DAI
-lp.token1=0x8f3cf7ad23cd3cadbd9735aff958023239c6a063
+# HAN
+lp.token0=0xcB621F4f34153676f3320Fc8F8fB913eDdA4f604
+# WMATIC
+lp.token1=0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270
 
+# Buy HAN
+#mode=MULTI_SWAP_TOKEN_OUT_TX_LIMIT
 # USDC
 #swap.in.token=0x2791bca1f2de4661ed88a30c99a7a9449aa84174
-#swap.in.amount=0.05
-# DAI
-swap.in.token=0x8f3cf7ad23cd3cadbd9735aff958023239c6a063
-swap.in.amount=0.05
+#swap.in.amount=50.0
+# HAN
+#swap.out.token=0xcB621F4f34153676f3320Fc8F8fB913eDdA4f604
 
-# DAI
-#swap.out.token=0x8f3cf7ad23cd3cadbd9735aff958023239c6a063
+# SELL HAN
+mode=MULTI_SWAP_TOKEN_IN_TX_LIMIT
+# HAN
+swap.in.token=0xcB621F4f34153676f3320Fc8F8fB913eDdA4f604
+swap.in.amount=37.1577198
 # USDC
 swap.out.token=0x2791bca1f2de4661ed88a30c99a7a9449aa84174
 
