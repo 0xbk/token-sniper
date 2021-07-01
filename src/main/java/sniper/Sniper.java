@@ -207,7 +207,7 @@ public class Sniper implements CommandLineRunner {
         if (
           e.getCause() != null &&
           e.getCause().getMessage() != null &&
-          e.getCause().getMessage().contains("INSUFFICIENT_LIQ")
+          e.getCause().getMessage().contains("INSUFFICIENT_")
         ) {
           log.info("Pool has insufficient liquidity.");
         } else {
@@ -328,7 +328,7 @@ public class Sniper implements CommandLineRunner {
         if (
           e.getCause() != null &&
           e.getCause().getMessage() != null &&
-          e.getCause().getMessage().contains("INSUFFICIENT_LIQ")
+          e.getCause().getMessage().contains("INSUFFICIENT_")
         ) {
           log.info("Pool has insufficient liquidity.");
         } else {
@@ -464,7 +464,7 @@ public class Sniper implements CommandLineRunner {
         if (
           e.getCause() != null &&
           e.getCause().getMessage() != null &&
-          e.getCause().getMessage().contains("INSUFFICIENT_LIQ")
+          e.getCause().getMessage().contains("INSUFFICIENT_")
         ) {
           log.info("Pool has insufficient liquidity.");
         } else {

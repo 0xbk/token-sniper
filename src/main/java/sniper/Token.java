@@ -15,9 +15,4 @@ public interface Token {
   String getSymbol();
 
   BigInteger getMaxTxAmount();
-  String getUniswapV2Pair();
-  BigInteger getBurnFee();
-  BigInteger getLiquidityFee();
-  BigInteger getMarketingFee();
-  BigInteger getPotFee();
 }
